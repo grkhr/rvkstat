@@ -6,29 +6,29 @@ vkGetAdStatistics <- function(account_id = NULL,
                               date_to = Sys.Date(),
 							                api_version = NULL,
                               access_token = NULL){
-  
+  packageStartupMessage("NUUU SUKA")
   if(is.null(access_token)){
     stop("Access token isn't set")
   }
-  
+
   # check api version
   api_version <- api_version_checker(api_version)
-  
+
   if(!(period %in% c("day","month","overall"))){
     stop("You can choose only day, month or overall period")
   }
-  
+
   # transfroming filter for campaigns in json
   if(period == "month"){
     date_from <- format(as.Date(as.character(date_from)), "%Y-%m")
     date_to   <- format(as.Date(as.character(date_to)), "%Y-%m")
   }
-  
+
   if(period == "overall"){
     date_from <- 0
     date_to   <- 0
   }
-  
+
   # split if there are more than 400 ids
   numb <- 400
   divnumb <- length(ids) %/% numb + 1
@@ -36,20 +36,20 @@ vkGetAdStatistics <- function(account_id = NULL,
   for (i in 1:divnumb)
   {
     ids_list[[i]] <- ids[1:numb]
-    ids <- ids[-(1:numb)] 
+    ids <- ids[-(1:numb)]
   }
   ids_list <- lapply(ids_list, function(x) x[!is.na(x)])
-  
+
   # resulting data frame
-  result <- data.frame()  
-  
+  result <- data.frame()
+
   offset <- 1
   for (i in 1:length(ids_list))
   {
-    
+
   # ads
   ids <- paste0(ids_list[[i]], collapse = ",")
-  
+
   # check if flood control
   query <- paste0("https://api.vk.com/method/ads.getFloodStats?account_id=",account_id,"&access_token=",access_token,"&v=",api_version)
   answer <- GET(query)
@@ -57,26 +57,29 @@ vkGetAdStatistics <- function(account_id = NULL,
   dataRaw <- content(answer, "parsed", "application/json")
   Sys.sleep(2) #fuck vk
   packageStartupMessage("Queries left: ",dataRaw$response$left,", Queries limit will refresh after ",dataRaw$response$refresh, " seconds", appendLF = T)
+  packageStartupMessage('__________')
+  packageStartupMessage(dataRaw)
+  packageStartupMessage('__________')
   if (dataRaw$response$left < 5) #vkontakte-hooyakte [2]
   {
     packageStartupMessage("Sleeping for ",dataRaw$response$refresh + 1," seconds until queries limit will refresh...", appendLF = T)
     Sys.sleep(dataRaw$response$refresh + 1)
   }
-  
+
   # stats
   query <- paste0("https://api.vk.com/method/ads.getStatistics?account_id=",account_id,"&ids_type=",ids_type,"&ids=",ids,"&period=",period,"&date_from=",date_from,"&date_to=",date_to,"&access_token=",access_token,"&v=",api_version)
   answer <- GET(query)
   stop_for_status(answer)
   dataRaw <- content(answer, "parsed", "application/json")
   Sys.sleep(2) #fuck vk
-  
+
   # check if errors
   if(!is.null(dataRaw$error)){
     stop(paste0("Error ", dataRaw$error$error_code," - ", dataRaw$error$error_msg))
   }
 
     for(i in 1:length(dataRaw$response)){
-    
+
     # parsing result
     if(period == "day"){
     for(dt in 1:length(dataRaw$response[[i]]$stats)){
@@ -135,8 +138,8 @@ vkGetAdStatistics <- function(account_id = NULL,
      }
     }
   }
-  
-  # data type mismatch handler 
+
+  # data type mismatch handler
   if (nrow(result) > 0) {
     result$spent <- as.numeric(result$spent)
     result$clicks <- as.integer(result$clicks)
@@ -144,5 +147,5 @@ vkGetAdStatistics <- function(account_id = NULL,
     result$reach <- as.integer(result$reach)
     result$join_rate <- as.integer(result$join_rate)
   }
-  return(result) 
+  return(result)
 }
